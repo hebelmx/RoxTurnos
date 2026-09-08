@@ -1,0 +1,14 @@
+# Normalize line endings for text sources
+*.md        text
+*.txt       text
+*.py        text eol=lf
+*.sh        text eol=lf
+
+# Excel workbooks: treat as binary for merge, but produce a readable
+# text diff via the "xlsx" textconv driver (see scripts/xlsx-textconv.py).
+# Enable it once per clone with:
+#   git config diff.xlsx.textconv "python3 scripts/xlsx-textconv.py"
+#   git config diff.xlsx.binary true
+*.xlsx      diff=xlsx -merge -text
+*.xls       diff=xlsx -merge -text
+*.xlsm      diff=xlsx -merge -text
