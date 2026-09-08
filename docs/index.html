@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoxTurnos</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#1c2024; --muted:#697077;
+    --line:#e3e6ea; --accent:#2f6fed; --accent-ink:#fff;
+    --ok:#1a7f45; --warn:#a6600a; --bad:#c1352b; --chip:#eef1f6;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#15171a; --card:#1e2125; --ink:#e8eaed; --muted:#9aa0a6;
+      --line:#2d3136; --accent:#5b8cff; --accent-ink:#0c0f14; --chip:#2a2e33;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;background:var(--card);
+    border-bottom:1px solid var(--line);padding:10px 14px}
+  .bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+  .status{font-size:12px;padding:3px 8px;border-radius:999px;background:var(--chip);color:var(--muted)}
+  .status.ok{color:var(--ok)} .status.warn{color:var(--warn)} .status.bad{color:var(--bad)}
+  nav{display:flex;gap:4px;margin-top:9px;overflow-x:auto}
+  nav button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);
+    padding:7px 11px;border-radius:8px;font-size:14px;cursor:pointer}
+  nav button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+  main{max-width:820px;margin:0 auto;padding:16px 14px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:14px;margin-bottom:14px}
+  .card h2{margin:0 0 10px;font-size:15px}
+  label{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);
+    border-radius:8px;background:var(--bg);color:var(--ink);font-size:15px}
+  button.act{background:var(--accent);color:var(--accent-ink);border:0;
+    padding:9px 14px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);
+    padding:8px 12px;border-radius:8px;font-size:13px;cursor:pointer}
+  button.link{background:0;border:0;color:var(--accent);cursor:pointer;font-size:13px;padding:2px 4px}
+  button.danger{color:var(--bad)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+  .row>*{flex:1;min-width:120px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .chk{display:flex;align-items:center;gap:6px;background:var(--chip);
+    padding:5px 9px;border-radius:999px;font-size:13px;cursor:pointer}
+  .chk input{width:auto}
+  .muted{color:var(--muted);font-size:13px}
+  .wk{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
+  .wk h3{margin:0 0 6px;font-size:14px}
+  .slot{padding:8px 0;border-top:1px dashed var(--line)}
+  .slot b{font-size:13px}
+  .hide{display:none}
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+    background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;
+    font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:20}
+  .toast.show{opacity:1}
+  .setup{max-width:420px;margin:8vh auto;padding:0 16px}
+  code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
+  ul.tight{margin:6px 0;padding-left:18px} ul.tight li{margin:3px 0}
+</style>
+</head>
+<body>
+
+<div id="gate" class="setup">
+  <div class="card">
+    <h2>RoxTurnos</h2>
+    <p class="muted" id="gateMsg">Escribe la contraseña para ver el rol de turnos.</p>
+    <div id="gatePass">
+      <label>Contraseña</label>
+      <input type="password" id="passInput" autocomplete="current-password">
+      <label style="margin-top:8px"><input type="checkbox" id="passRemember" checked style="width:auto"> Recordar en este dispositivo</label>
+      <div style="margin-top:12px"><button class="act" id="passBtn">Entrar</button></div>
+      <p class="muted" id="passErr" style="color:var(--bad)"></p>
+    </div>
+    <div id="gateNew" class="hide">
+      <p class="muted">Primera vez: crea la contraseña y pega un token de GitHub para poder guardar.</p>
+      <label>Contraseña nueva</label><input type="password" id="newPass1">
+      <label>Repite la contraseña</label><input type="password" id="newPass2">
+      <label>Token de GitHub (fine-grained, permiso <code>Contents: Read and write</code>)</label>
+      <input type="password" id="newToken" placeholder="github_pat_...">
+      <div style="margin-top:12px"><button class="act" id="newBtn">Crear</button></div>
+      <p class="muted" id="newErr" style="color:var(--bad)"></p>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hide">
+<header>
+  <div class="bar">
+    <h1>RoxTurnos</h1>
+    <span class="status" id="saveStatus">…</span>
+    <span style="flex:1"></span>
+    <button class="ghost" id="reloadBtn">Recargar</button>
+  </div>
+  <nav id="tabs">
+    <button data-tab="panel" class="on">Panel</button>
+    <button data-tab="turnos">Turnos</button>
+    <button data-tab="cambios">Cambios</button>
+    <button data-tab="empleados">Empleados</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+</header>
+<main>
+  <section id="panel" class="tab"></section>
+  <section id="turnos" class="tab hide"></section>
+  <section id="cambios" class="tab hide"></section>
+  <section id="empleados" class="tab hide"></section>
+  <section id="ajustes" class="tab hide"></section>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ------------ config ------------ */
+const OWNER="hebelmx", REPO="RoxTurnos", BRANCH="dev", FILE="docs/data/roster.enc.json";
+const API=`https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE}`;
+const SLOTS=[["satAM","Sábado matutino"],["satPM","Sábado vespertino"],["sunAM","Domingo matutino"]];
+const LS={tok:"rox_token",pass:"rox_pass",cache:"rox_cache"};
+
+/* ------------ state ------------ */
+let S={ data:null, sha:null, token:null, pass:null, key:null, dirty:false, saving:false };
+
+/* ------------ tiny helpers ------------ */
+const $=s=>document.querySelector(s);
+const el=(t,p={},...k)=>{const e=document.createElement(t);for(const[a,v]of Object.entries(p)){
+  if(a==="class")e.className=v;else if(a==="text")e.textContent=v;else if(a.startsWith("on"))e.addEventListener(a.slice(2),v);
+  else e.setAttribute(a,v);}k.flat().forEach(c=>e.append(c));return e;};
+const uid=p=>p+Math.random().toString(36).slice(2,8);
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),2200);}
+const b64e=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+function fmtDate(iso){if(!iso)return"—";const d=new Date(iso+"T00:00:00");
+  return d.toLocaleDateString("es",{day:"numeric",month:"short"});}
+function weekendLabel(w){const ds=SLOTS.map(([k])=>w.shifts[k]?.date).filter(Boolean).sort();
+  if(!ds.length)return"(sin fecha)";const a=ds[0],b=ds[ds.length-1];
+  const y=new Date(a+"T00:00:00").getFullYear();
+  return a===b?`${fmtDate(a)} ${y}`:`${fmtDate(a)}–${fmtDate(b)} ${y}`;}
+function addDays(iso,n){const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function empName(id){return S.data.employees.find(e=>e.id===id)?.name||"?";}
+
+/* ------------ crypto ------------ */
+async function deriveKey(pass,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},
+    base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+async function encryptData(obj,pass){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pass,salt);
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({v:1,kdf:"PBKDF2",iter:150000,salt:b64e(salt),iv:b64e(iv),ct:b64e(ct)},null,0);
+}
+async function decryptBlob(text,pass){
+  const j=JSON.parse(text);
+  const key=await deriveKey(pass,b64d(j.salt));
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64d(j.iv)},key,b64d(j.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+/* ------------ github io ------------ */
+async function ghFetch(){
+  const h={Accept:"application/vnd.github.raw+json"};
+  if(S.token)h.Authorization="Bearer "+S.token;
+  // use contents API to also get sha; add cache-buster
+  const r=await fetch(API+"?ref="+BRANCH+"&t="+Date.now(),{headers:{...h,Accept:"application/vnd.github+json"}});
+  if(r.status===404)return{missing:true};
+  if(!r.ok)throw new Error("GitHub "+r.status+(r.status===403?" (límite de peticiones o token inválido)":""));
+  const j=await r.json();
+  const text=decodeURIComponent(escape(atob(j.content.replace(/\n/g,""))));
+  return{text,sha:j.sha};
+}
+async function ghSave(blobText,msg){
+  if(!S.token)throw new Error("Falta el token de GitHub (Ajustes).");
+  const body={message:msg,content:btoa(unescape(encodeURIComponent(blobText))),branch:BRANCH};
+  if(S.sha)body.sha=S.sha;
+  const r=await fetch(API,{method:"PUT",headers:{Authorization:"Bearer "+S.token,
+    Accept:"application/vnd.github+json","Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(r.status===409)throw new Error("Conflicto: alguien más guardó cambios. Pulsa Recargar.");
+  if(!r.ok){const t=await r.text();throw new Error("No se pudo guardar ("+r.status+"). "+t.slice(0,120));}
+  const j=await r.json();S.sha=j.content.sha;
+}
+
+/* ------------ save orchestration ------------ */
+let saveTimer=null;
+function markDirty(){S.dirty=true;persistCache();setStatus();clearTimeout(saveTimer);saveTimer=setTimeout(doSave,1200);}
+function persistCache(){try{localStorage.setItem(LS.cache,JSON.stringify(S.data));}catch(e){}}
+async function doSave(){
+  if(S.saving||!S.dirty)return;
+  if(!S.token){setStatus();return;}
+  S.saving=true;setStatus();
+  try{
+    const blob=await encryptData(S.data,S.pass);
+    await ghSave(blob,"Actualizar rol de turnos ("+new Date().toISOString().slice(0,16).replace("T"," ")+")");
+    S.dirty=false;toast("Guardado");
+  }catch(e){toast(e.message);}
+  S.saving=false;setStatus();
+}
+function setStatus(){
+  const s=$("#saveStatus");if(!s)return;
+  if(S.saving){s.textContent="Guardando…";s.className="status warn";}
+  else if(!S.token){s.textContent="Sin token · solo local";s.className="status bad";}
+  else if(S.dirty){s.textContent="Cambios sin guardar";s.className="status warn";}
+  else{s.textContent="Guardado";s.className="status ok";}
+}
+
+/* ------------ boot / gate ------------ */
+async function boot(){
+  S.token=localStorage.getItem(LS.tok)||null;
+  const savedPass=localStorage.getItem(LS.pass);
+  let probe;
+  try{probe=await ghFetch();}
+  catch(e){
+    // offline or rate-limited: fall back to cache if we have a pass
+    const c=localStorage.getItem(LS.cache);
+    if(c&&savedPass){S.pass=savedPass;S.data=JSON.parse(c);openApp();toast("Sin conexión: mostrando copia local");return;}
+    $("#gateMsg").textContent=e.message;return;
+  }
+  if(probe.missing){ showNewSetup(); return; }
+  S.sha=probe.sha; S._blob=probe.text;
+  if(savedPass){
+    try{ S.data=await decryptBlob(probe.text,savedPass); S.pass=savedPass; openApp(); return; }
+    catch(e){ localStorage.removeItem(LS.pass); }
+  }
+  $("#passBtn").onclick=async()=>{
+    const p=$("#passInput").value;
+    try{
+      S.data=await decryptBlob(S._blob,p);S.pass=p;
+      if($("#passRemember").checked)localStorage.setItem(LS.pass,p);
+      openApp();
+    }catch(e){$("#passErr").textContent="Contraseña incorrecta.";}
+  };
+  $("#passInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("#passBtn").click();});
+}
+function showNewSetup(){
+  $("#gatePass").classList.add("hide");$("#gateNew").classList.remove("hide");
+  $("#gateMsg").textContent="";
+  $("#newBtn").onclick=async()=>{
+    const p1=$("#newPass1").value,p2=$("#newPass2").value,tk=$("#newToken").value.trim();
+    if(p1.length<4)return $("#newErr").textContent="La contraseña es muy corta.";
+    if(p1!==p2)return $("#newErr").textContent="Las contraseñas no coinciden.";
+    if(!tk)return $("#newErr").textContent="Falta el token.";
+    S.pass=p1;S.token=tk;S.sha=null;
+    S.data={version:1,employees:[],weekends:[],swaps:[]};
+    try{
+      const blob=await encryptData(S.data,p1);
+      await ghSave(blob,"Crear rol de turnos");
+      localStorage.setItem(LS.tok,tk);localStorage.setItem(LS.pass,p1);
+      openApp();
+    }catch(e){$("#newErr").textContent=e.message;}
+  };
+}
+function openApp(){
+  $("#gate").classList.add("hide");$("#app").classList.remove("hide");
+  persistCache();
+  document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+  $("#reloadBtn").onclick=reload;
+  setStatus();showTab("panel");
+}
+async function reload(){
+  try{
+    const p=await ghFetch();
+    if(p.missing)return toast("El archivo ya no existe.");
+    S.data=await decryptBlob(p.text,S.pass);S.sha=p.sha;S.dirty=false;
+    persistCache();render();toast("Actualizado");
+  }catch(e){toast(e.message);}
+}
+
+/* ------------ tabs ------------ */
+let CUR="panel";
+function showTab(t){
+  CUR=t;
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  document.querySelectorAll(".tab").forEach(s=>s.classList.toggle("hide",s.id!==t));
+  render();
+}
+function render(){({panel:renderPanel,turnos:renderTurnos,cambios:renderCambios,
+  empleados:renderEmpleados,ajustes:renderAjustes}[CUR])();setStatus();}
+
+/* ------------ PANEL ------------ */
+function computeStats(year){
+  const st={};
+  const ensure=id=>st[id]||(st[id]={shifts:0,satAM:0,satPM:0,sunAM:0,weekends:new Set(),given:0,taken:0});
+  for(const w of S.data.weekends){
+    for(const[k]of SLOTS){
+      const sh=w.shifts[k];if(!sh)continue;
+      if(year&&sh.date&&new Date(sh.date+"T00:00:00").getFullYear()!==year)continue;
+      for(const id of sh.employees||[]){ensure(id);st[id].shifts++;st[id][k]++;st[id].weekends.add(w.id);}
+    }
+  }
+  for(const sw of S.data.swaps){
+    if(!sw.applied)continue;
+    if(year&&sw.effectiveDate&&new Date(sw.effectiveDate+"T00:00:00").getFullYear()!==year)continue;
+    if(sw.from){ensure(sw.from).given++;}
+    if(sw.to){ensure(sw.to).taken++;}
+  }
+  return st;
+}
+function renderPanel(){
+  const box=$("#panel");box.innerHTML="";
+  const years=new Set();S.data.weekends.forEach(w=>SLOTS.forEach(([k])=>{
+    const d=w.shifts[k]?.date;if(d)years.add(new Date(d+"T00:00:00").getFullYear());}));
+  const yearList=[...years].sort((a,b)=>b-a);
+  if(!renderPanel._init){renderPanel._init=true;renderPanel._year=yearList[0]||null;}
+
+  const head=el("div",{class:"card"});
+  head.append(el("h2",{text:"Panel"}));
+  const filt=el("div",{class:"row"});
+  const sel=el("select",{onchange:e=>{renderPanel._year=e.target.value?+e.target.value:null;renderPanel();}});
+  sel.append(el("option",{value:"",text:"Todos los años"}));
+  yearList.forEach(y=>{const o=el("option",{value:String(y),text:String(y)});if(y===renderPanel._year)o.selected=true;sel.append(o);});
+  filt.append(el("div",{},el("label",{text:"Periodo"}),sel));
+  head.append(filt);
+  const active=S.data.employees.filter(e=>e.active).length;
+  head.append(el("p",{class:"muted",text:`${active} empleados activos · ${S.data.weekends.length} fines de semana registrados`}));
+  box.append(head);
+
+  const st=computeStats(renderPanel._year);
+  const rows=S.data.employees.map(e=>({e,s:st[e.id]||{shifts:0,satAM:0,satPM:0,sunAM:0,weekends:new Set(),given:0,taken:0}}))
+    .sort((a,b)=>b.s.weekends.size-a.s.weekends.size||b.s.shifts-a.s.shifts||a.e.name.localeCompare(b.e.name));
+
+  const c=el("div",{class:"card"});
+  c.append(el("h2",{text:"Fines de semana trabajados"}));
+  if(!rows.length){c.append(el("p",{class:"muted",text:"Agrega empleados y turnos para ver el conteo."}));box.append(c);return;}
+  const t=el("table");
+  t.append(el("tr",{},el("th",{text:"Empleado"}),
+    el("th",{class:"num",text:"Fines"}),el("th",{class:"num",text:"Turnos"}),
+    el("th",{class:"num",text:"S.Mat"}),el("th",{class:"num",text:"S.Vesp"}),el("th",{class:"num",text:"D.Mat"}),
+    el("th",{class:"num",text:"Cedidos"}),el("th",{class:"num",text:"Tomados"})));
+  for(const{e,s}of rows){
+    t.append(el("tr",{},
+      el("td",{text:e.name+(e.active?"":" (inactivo)")}),
+      el("td",{class:"num",text:s.weekends.size}),
+      el("td",{class:"num",text:s.shifts}),
+      el("td",{class:"num",text:s.satAM}),el("td",{class:"num",text:s.satPM}),el("td",{class:"num",text:s.sunAM}),
+      el("td",{class:"num",text:s.given}),el("td",{class:"num",text:s.taken})));
+  }
+  c.append(t);
+  c.append(el("p",{class:"muted",text:"«Cedidos» = turnos que pasó a otro compañero. «Tomados» = turnos que cubrió por otro."}));
+  box.append(c);
+
+  // pending future swaps
+  const pend=S.data.swaps.filter(s=>!s.applied);
+  if(pend.length){
+    const p=el("div",{class:"card"});
+    p.append(el("h2",{text:"Cambios pendientes"}));
+    pend.sort((a,b)=>(a.effectiveDate||"").localeCompare(b.effectiveDate||""));
+    for(const sw of pend)p.append(el("p",{class:"muted",
+      text:`${fmtDate(sw.effectiveDate)} · ${empName(sw.from)} → ${empName(sw.to)} (${slotName(sw.slot)})`}));
+    box.append(p);
+  }
+}
+function slotName(k){return (SLOTS.find(s=>s[0]===k)||[])[1]||k;}
+
+/* ------------ TURNOS ------------ */
+function renderTurnos(){
+  const box=$("#turnos");box.innerHTML="";
+  const add=el("div",{class:"card"});
+  add.append(el("h2",{text:"Agregar fin de semana"}));
+  const d=el("input",{type:"date"});
+  add.append(el("label",{text:"Sábado"}),d);
+  add.append(el("p",{class:"muted",text:"El domingo se calcula solo (día siguiente)."}));
+  add.append(el("div",{style:"margin-top:10px"},el("button",{class:"act",text:"Agregar",onclick:()=>{
+    if(!d.value)return toast("Elige la fecha del sábado.");
+    const sun=addDays(d.value,1);
+    S.data.weekends.push({id:uid("w"),shifts:{
+      satAM:{date:d.value,employees:[]},satPM:{date:d.value,employees:[]},sunAM:{date:sun,employees:[]}}});
+    markDirty();renderTurnos();
+  }})));
+  box.append(add);
+
+  const wks=[...S.data.weekends].sort((a,b)=>weekendKey(b).localeCompare(weekendKey(a)));
+  if(!wks.length){box.append(el("p",{class:"muted",text:"Aún no hay fines de semana."}));return;}
+  const list=el("div",{class:"card"});
+  list.append(el("h2",{text:"Fines de semana"}));
+  const activeEmps=S.data.employees.filter(e=>e.active);
+  for(const w of wks){
+    const wc=el("div",{class:"wk"});
+    const hd=el("div",{class:"bar"});
+    hd.append(el("h3",{text:weekendLabel(w)}),el("span",{style:"flex:1"}),
+      el("button",{class:"link danger",text:"Eliminar",onclick:()=>{
+        if(!confirm("¿Eliminar este fin de semana?"))return;
+        S.data.weekends=S.data.weekends.filter(x=>x.id!==w.id);markDirty();renderTurnos();}}));
+    wc.append(hd);
+    for(const[k,lbl]of SLOTS){
+      const sh=w.shifts[k]||(w.shifts[k]={date:"",employees:[]});
+      const sc=el("div",{class:"slot"});
+      const dt=el("input",{type:"date",value:sh.date||"",style:"max-width:170px",
+        onchange:e=>{sh.date=e.target.value;markDirty();}});
+      sc.append(el("div",{class:"bar"},el("b",{text:lbl}),el("span",{style:"flex:1"}),dt));
+      const chips=el("div",{class:"chips"});
+      for(const emp of activeEmps){
+        const on=sh.employees.includes(emp.id);
+        const cb=el("input",{type:"checkbox",onchange:e=>{
+          if(e.target.checked)sh.employees.push(emp.id);
+          else sh.employees=sh.employees.filter(x=>x!==emp.id);
+          markDirty();renderPanelSoft();}});
+        cb.checked=on;
+        chips.append(el("label",{class:"chk"},cb,document.createTextNode(emp.name)));
+      }
+      // include already-assigned but now-inactive employees
+      for(const id of sh.employees){if(!activeEmps.find(e=>e.id===id))
+        chips.append(el("span",{class:"chk",text:empName(id)+" (inactivo)"}));}
+      if(!activeEmps.length)chips.append(el("span",{class:"muted",text:"Sin empleados activos."}));
+      sc.append(chips);
+      wc.append(sc);
+    }
+    list.append(wc);
+  }
+  box.append(list);
+}
+function weekendKey(w){return SLOTS.map(([k])=>w.shifts[k]?.date).filter(Boolean).sort()[0]||"0000";}
+function renderPanelSoft(){/* keep panel fresh if user switches back; no-op live */}
+
+/* ------------ CAMBIOS ------------ */
+function renderCambios(){
+  const box=$("#cambios");box.innerHTML="";
+  const f=el("div",{class:"card"});
+  f.append(el("h2",{text:"Registrar cambio de turno"}));
+
+  const wkSel=el("select");
+  const wks=[...S.data.weekends].sort((a,b)=>weekendKey(b).localeCompare(weekendKey(a)));
+  wks.forEach(w=>wkSel.append(el("option",{value:w.id,text:weekendLabel(w)})));
+  const slotSel=el("select");
+  SLOTS.forEach(([k,l])=>slotSel.append(el("option",{value:k,text:l})));
+  const fromSel=el("select"), toSel=el("select");
+  const dateI=el("input",{type:"date"});
+  const reasonI=el("input",{type:"text",placeholder:"motivo (opcional)"});
+  const futureC=el("input",{type:"checkbox"});
+
+  function refreshPeople(){
+    const w=S.data.weekends.find(x=>x.id===wkSel.value);
+    const sh=w?.shifts[slotSel.value];
+    fromSel.innerHTML="";toSel.innerHTML="";
+    (sh?.employees||[]).forEach(id=>fromSel.append(el("option",{value:id,text:empName(id)})));
+    if(!fromSel.options.length)fromSel.append(el("option",{value:"",text:"(nadie asignado)"}));
+    S.data.employees.filter(e=>e.active).forEach(e=>toSel.append(el("option",{value:e.id,text:e.name})));
+    if(sh?.date)dateI.value=sh.date;
+  }
+  wkSel.onchange=slotSel.onchange=refreshPeople;
+  if(!wks.length){f.append(el("p",{class:"muted",text:"Primero agrega fines de semana en la pestaña Turnos."}));box.append(f);}
+  else{
+    f.append(el("label",{text:"Fin de semana"}),wkSel,
+      el("label",{text:"Turno"}),slotSel,
+      el("label",{text:"Quién lo tenía"}),fromSel,
+      el("label",{text:"Quién lo cubre"}),toSel,
+      el("label",{text:"Fecha del turno"}),dateI,
+      el("label",{text:"Motivo"}),reasonI,
+      el("label",{},futureC,document.createTextNode(" Es un cambio a futuro (marcar cuando ya se haya cubierto)")));
+    f.append(el("div",{style:"margin-top:12px"},el("button",{class:"act",text:"Registrar cambio",onclick:()=>{
+      const w=S.data.weekends.find(x=>x.id===wkSel.value);
+      const sh=w?.shifts[slotSel.value];
+      const from=fromSel.value,to=toSel.value;
+      if(!from)return toast("No hay nadie asignado a ese turno.");
+      if(!to||to===from)return toast("Elige a un compañero distinto.");
+      const applied=!futureC.checked;
+      if(applied&&sh){sh.employees=sh.employees.map(x=>x===from?to:x);}
+      S.data.swaps.push({id:uid("s"),logged:new Date().toISOString().slice(0,10),
+        weekendId:w.id,slot:slotSel.value,from,to,reason:reasonI.value.trim(),
+        effectiveDate:dateI.value||sh?.date||"",applied});
+      markDirty();renderCambios();toast(applied?"Cambio aplicado":"Cambio pendiente guardado");
+    }})));
+    box.append(f);
+    setTimeout(refreshPeople);
+  }
+
+  const hist=el("div",{class:"card"});
+  hist.append(el("h2",{text:"Historial de cambios"}));
+  const sw=[...S.data.swaps].sort((a,b)=>(b.effectiveDate||b.logged).localeCompare(a.effectiveDate||a.logged));
+  if(!sw.length)hist.append(el("p",{class:"muted",text:"Sin cambios registrados."}));
+  const t=el("table");
+  if(sw.length)t.append(el("tr",{},el("th",{text:"Fecha"}),el("th",{text:"Turno"}),
+    el("th",{text:"De → A"}),el("th",{text:"Motivo"}),el("th",{text:""})));
+  for(const s of sw){
+    const w=S.data.weekends.find(x=>x.id===s.weekendId);
+    const tr=el("tr",{},
+      el("td",{text:fmtDate(s.effectiveDate)+(s.applied?"":" ⏳")}),
+      el("td",{text:(w?weekendLabel(w)+" · ":"")+slotName(s.slot)}),
+      el("td",{text:empName(s.from)+" → "+empName(s.to)}),
+      el("td",{text:s.reason||"—"}));
+    const acts=el("td");
+    if(!s.applied)acts.append(el("button",{class:"link",text:"Aplicar",onclick:()=>{
+      const sh=w?.shifts[s.slot];if(sh)sh.employees=sh.employees.map(x=>x===s.from?s.to:x);
+      s.applied=true;markDirty();renderCambios();}}));
+    acts.append(el("button",{class:"link danger",text:"Deshacer",onclick:()=>{
+      if(!confirm("¿Deshacer este cambio?"))return;
+      if(s.applied){const sh=w?.shifts[s.slot];if(sh)sh.employees=sh.employees.map(x=>x===s.to?s.from:x);}
+      S.data.swaps=S.data.swaps.filter(x=>x.id!==s.id);markDirty();renderCambios();}}));
+    tr.append(acts);t.append(tr);
+  }
+  if(sw.length)hist.append(t);
+  box.append(hist);
+}
+
+/* ------------ EMPLEADOS ------------ */
+function renderEmpleados(){
+  const box=$("#empleados");box.innerHTML="";
+  const add=el("div",{class:"card"});
+  add.append(el("h2",{text:"Agregar empleado"}));
+  const n=el("input",{type:"text",placeholder:"Nombre y apellido"});
+  n.addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+  function go(){
+    const name=n.value.trim();if(!name)return;
+    S.data.employees.push({id:uid("e"),name,active:true});n.value="";markDirty();renderEmpleados();
+  }
+  add.append(n,el("div",{style:"margin-top:10px"},el("button",{class:"act",text:"Agregar",onclick:go})));
+  box.append(add);
+
+  const c=el("div",{class:"card"});
+  c.append(el("h2",{text:"Empleados"}));
+  if(!S.data.employees.length)c.append(el("p",{class:"muted",text:"Sin empleados todavía."}));
+  const t=el("table");
+  for(const e of [...S.data.employees].sort((a,b)=>a.name.localeCompare(b.name))){
+    const nameCell=el("td");
+    const span=el("span",{text:e.name});
+    span.ondblclick=()=>{
+      const v=prompt("Nuevo nombre:",e.name);if(v&&v.trim()){e.name=v.trim();markDirty();renderEmpleados();}
+    };
+    nameCell.append(span,e.active?"":el("span",{class:"muted",text:" · inactivo"}));
+    const acts=el("td",{class:"num"});
+    acts.append(el("button",{class:"link",text:e.active?"Desactivar":"Activar",onclick:()=>{
+      e.active=!e.active;markDirty();renderEmpleados();}}));
+    const used=isEmployeeUsed(e.id);
+    acts.append(el("button",{class:"link danger",text:"Eliminar",onclick:()=>{
+      if(used)return toast("Tiene turnos o cambios; desactívalo en su lugar.");
+      if(!confirm("¿Eliminar a "+e.name+"?"))return;
+      S.data.employees=S.data.employees.filter(x=>x.id!==e.id);markDirty();renderEmpleados();}}));
+    t.append(el("tr",{},nameCell,acts));
+  }
+  if(S.data.employees.length)c.append(t,el("p",{class:"muted",text:"Doble clic en un nombre para editarlo."}));
+  box.append(c);
+}
+function isEmployeeUsed(id){
+  return S.data.weekends.some(w=>SLOTS.some(([k])=>w.shifts[k]?.employees?.includes(id)))
+    ||S.data.swaps.some(s=>s.from===id||s.to===id);
+}
+
+/* ------------ AJUSTES ------------ */
+function renderAjustes(){
+  const box=$("#ajustes");box.innerHTML="";
+
+  const g=el("div",{class:"card"});
+  g.append(el("h2",{text:"Token de GitHub (para guardar)"}));
+  const tk=el("input",{type:"password",placeholder:S.token?"•••••• (guardado)":"github_pat_..."});
+  g.append(el("label",{text:"Token fine-grained con permiso Contents: Read and write en este repo"}),tk);
+  g.append(el("div",{style:"margin-top:10px"},
+    el("button",{class:"act",text:"Guardar token",onclick:()=>{
+      const v=tk.value.trim();if(!v)return;S.token=v;localStorage.setItem(LS.tok,v);tk.value="";
+      toast("Token guardado");render();if(S.dirty)doSave();}}),
+    el("button",{class:"ghost",text:"Quitar token",onclick:()=>{
+      S.token=null;localStorage.removeItem(LS.tok);toast("Token quitado");render();}})));
+  g.append(el("p",{class:"muted",text:"Sin token puedes ver y editar, pero los cambios solo quedan en este dispositivo hasta que pongas uno."}));
+  box.append(g);
+
+  const p=el("div",{class:"card"});
+  p.append(el("h2",{text:"Contraseña de acceso"}));
+  const p1=el("input",{type:"password",placeholder:"nueva contraseña"});
+  const p2=el("input",{type:"password",placeholder:"repite la contraseña"});
+  p.append(el("label",{text:"Cambiar contraseña (se vuelve a cifrar todo)"}),p1,p2);
+  p.append(el("div",{style:"margin-top:10px"},el("button",{class:"act",text:"Cambiar contraseña",onclick:async()=>{
+    if(p1.value.length<4)return toast("Muy corta.");
+    if(p1.value!==p2.value)return toast("No coinciden.");
+    if(!S.token)return toast("Necesitas token para volver a cifrar.");
+    S.pass=p1.value;
+    try{await doSave();if(localStorage.getItem(LS.pass))localStorage.setItem(LS.pass,S.pass);
+      p1.value=p2.value="";toast("Contraseña cambiada");}catch(e){toast(e.message);}
+  }})));
+  const rm=el("button",{class:"ghost",text:localStorage.getItem(LS.pass)?"Olvidar contraseña en este dispositivo":"Recordar contraseña en este dispositivo",
+    onclick:()=>{if(localStorage.getItem(LS.pass)){localStorage.removeItem(LS.pass);}else{localStorage.setItem(LS.pass,S.pass);}renderAjustes();}});
+  p.append(el("div",{style:"margin-top:8px"},rm));
+  box.append(p);
+
+  const x=el("div",{class:"card"});
+  x.append(el("h2",{text:"Exportar"}));
+  x.append(el("div",{class:"bar"},
+    el("button",{class:"ghost",text:"Asignaciones CSV",onclick:()=>exportCSV("asignaciones")}),
+    el("button",{class:"ghost",text:"Empleados CSV",onclick:()=>exportCSV("empleados")}),
+    el("button",{class:"ghost",text:"Cambios CSV",onclick:()=>exportCSV("cambios")})));
+  box.append(x);
+
+  const h=el("div",{class:"card"});
+  h.append(el("h2",{text:"Ayuda"}));
+  h.append(el("ul",{class:"tight"},
+    el("li",{},"Comparte el enlace de esta página y la contraseña con quien deba consultar el rol."),
+    el("li",{},"Solo quien tenga que editar necesita el token de GitHub."),
+    el("li",{},"Los datos se guardan cifrados en el repositorio; sin la contraseña no se pueden leer."),
+    el("li",{},"«Recargar» arriba trae los últimos cambios hechos en otro dispositivo.")));
+  box.append(h);
+}
+function download(name,text,type){
+  const a=el("a",{href:URL.createObjectURL(new Blob([text],{type})),download:name});
+  document.body.append(a);a.click();a.remove();
+}
+function csvRow(a){return a.map(v=>{v=(v??"").toString();return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(",");}
+function exportCSV(kind){
+  let rows=[];
+  if(kind==="empleados"){rows=[["nombre","activo"]];
+    S.data.employees.forEach(e=>rows.push([e.name,e.active?"sí":"no"]));}
+  else if(kind==="cambios"){rows=[["fecha","fin_de_semana","turno","de","a","motivo","estado"]];
+    S.data.swaps.forEach(s=>{const w=S.data.weekends.find(x=>x.id===s.weekendId);
+      rows.push([s.effectiveDate||s.logged,w?weekendLabel(w):"",slotName(s.slot),
+        empName(s.from),empName(s.to),s.reason,s.applied?"aplicado":"pendiente"]);});}
+  else{rows=[["fin_de_semana","fecha","turno","empleado"]];
+    S.data.weekends.forEach(w=>SLOTS.forEach(([k,l])=>{const sh=w.shifts[k];if(!sh)return;
+      (sh.employees||[]).forEach(id=>rows.push([weekendLabel(w),sh.date,l,empName(id)]));}));}
+  download("roxturnos-"+kind+".csv","﻿"+rows.map(csvRow).join("\n"),"text/csv");
+}
+
+/* ------------ go ------------ */
+boot();
+</script>
+</body>
+</html>
